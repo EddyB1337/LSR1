@@ -1,18 +1,19 @@
 import torch
 import torch.nn as nn
 
-from getData.getDataMnist import get_data_mnist
+from loadings.getDataMnist import get_data_mnist
 from models.cnn import CNN
 from optimizer.lsr1 import LSR1
-from train.train import train
+from loadings.train import train
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # First get our data
 traindt, testdt = get_data_mnist()
 
-# Create a model
-model = CNN()
+# Create a model, choose two numbers, its the size of our model
+size = [3, 3] #small modell
+model = CNN(size)
 
 # Define loss function
 loss_func = nn.CrossEntropyLoss()
