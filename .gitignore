@@ -1,4 +1,5 @@
 # Project exclude paths
 /data/
 /venv/
+.DS_Store
 .idea
