@@ -9,6 +9,7 @@ from train.train import train
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 traindt, testdt = get_data_mnist()
+
 loss_func = nn.CrossEntropyLoss()
 model = CNN()
 model.eval()
