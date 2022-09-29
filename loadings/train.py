@@ -1,5 +1,7 @@
 from torch.autograd import Variable
 import torch
+import numpy as np
+from tqdm import tqdm
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -10,7 +12,6 @@ print_every = 10
 
 
 def train(num_epochs, cnn, batch_size, optimizer, train_data, test_data, loss_func):
-
     loaders = {
         'train': torch.utils.data.DataLoader(train_data,
                                              batch_size=batch_size,
@@ -29,7 +30,7 @@ def train(num_epochs, cnn, batch_size, optimizer, train_data, test_data, loss_fu
     total_step = len(loaders['train'])
 
     for epoch in range(num_epochs):
-        for i, (images, labels) in enumerate(loaders['train']):
+        for i, (images, labels) in enumerate(tqdm(loaders['train'])):
             images, labels = images.to(device), labels.to(device)
 
             # gives batch data, normalize x when iterate train_loader
@@ -77,8 +78,51 @@ def train(num_epochs, cnn, batch_size, optimizer, train_data, test_data, loss_fu
                         accuracy += torch.mean(equals.type(torch.FloatTensor)).item()
                 train_losses.append(running_loss / n)
                 test_losses.append(test_loss / m)
-                print(f"Epoch, Steps {epoch + 1}/{num_epochs}, {i}.. "
+                print(f"Epoch, Steps [{epoch + 1}/{num_epochs}, {i+1}/{len(loaders['train'])}], .. "
                       f"Train loss: {running_loss / print_every:.3f}.. "
                       f"Test loss: {test_loss / m:.3f}.. "
                       f"Test accuracy: {accuracy / m:.3f}")
                 running_loss = 0
+
+
+def train_f(xy_init, n_iter, optimizer, loss_func):
+    """Run optimization finding the minimum of the Rosenbrock function.
+      From https://github.com/jankrepl/mildlyoverfitted/blob/master/mini_tutorials/custom_optimizer_in_pytorch/src.py
+    Parameters
+    ----------
+    xy_init : tuple
+        Two floats representing the x resp. y coordinates.
+    optimizer_class : object
+        Optimizer class.
+    n_iter : int
+        Number of iterations to run the optimization for.
+    optimizer : An torch optimizer.
+    Returns
+    -------
+    path : np.ndarray
+        2D array of shape `(n_iter + 1, 2)`. Where the rows represent the
+        iteration and the columns represent the x resp. y coordinates.
+    """
+
+    path = np.empty((n_iter + 1, 2))
+    path[0, :] = xy_init.cpu().detach().numpy()
+    xy_t = xy_init
+    for i in tqdm(range(1, n_iter + 1)):
+        optimizer.zero_grad()
+        loss = loss_func(xy_t)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(xy_t, 1.0)
+
+        def closure():
+            if torch.is_grad_enabled():
+                optimizer.zero_grad()
+            loss = loss_func(xy_t)
+            if loss.requires_grad:
+                loss.backward()
+            return loss
+
+        optimizer.step(closure)
+
+        path[i, :] = xy_t.cpu().detach().numpy()
+
+    return path
