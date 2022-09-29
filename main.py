@@ -24,7 +24,7 @@ epochs = 100
 batch_size = 256
 
 # Set hyperparametrs
-lr = None
+lr = 1
 max_iter = 20
 tolerance_grad = 1e-15
 tolerance_change = 1e-15
