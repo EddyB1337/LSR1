@@ -1,7 +1,17 @@
+import wandb
+import random
 from torch.autograd import Variable
 import torch
 import numpy as np
 from tqdm import tqdm
+import matplotlib.pyplot as plt
+
+# Ensure deterministic behavior
+torch.backends.cudnn.deterministic = True
+random.seed(hash("setting random seeds") % 2**32 - 1)
+np.random.seed(hash("improves reproducibility") % 2**32 - 1)
+torch.manual_seed(hash("by removing stochasticity") % 2**32 - 1)
+torch.cuda.manual_seed_all(hash("so runs are repeatable") % 2**32 - 1)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -11,7 +21,10 @@ running_loss = 0
 print_every = 10
 
 
+
 def train(num_epochs, cnn, batch_size, optimizer, train_data, test_data, loss_func):
+    torch.set_num_threads(2)
+    run = wandb.init()
     loaders = {
         'train': torch.utils.data.DataLoader(train_data,
                                              batch_size=batch_size,
@@ -21,6 +34,7 @@ def train(num_epochs, cnn, batch_size, optimizer, train_data, test_data, loss_fu
                                             batch_size=batch_size,
                                             shuffle=True),
     }
+    wandb.watch(cnn, loss_func, log="all", log_freq=10)
     running_loss = 0
     n = len(loaders['train'])
     m = len(loaders['test'])
@@ -57,7 +71,10 @@ def train(num_epochs, cnn, batch_size, optimizer, train_data, test_data, loss_fu
             optimizer.step(closure=closure)
             running_loss += loss.item()
             optimizer.zero_grad()
-
+            wandb.log({
+                'epoch': epoch,
+                'train_loss': running_loss/(i+1),
+            })
             if (i + 1) % 10 == 0:
                 test_loss = 0
                 accuracy = 0
@@ -78,11 +95,20 @@ def train(num_epochs, cnn, batch_size, optimizer, train_data, test_data, loss_fu
                         accuracy += torch.mean(equals.type(torch.FloatTensor)).item()
                 train_losses.append(running_loss / n)
                 test_losses.append(test_loss / m)
-                print(f"Epoch, Steps [{epoch + 1}/{num_epochs}, {i+1}/{len(loaders['train'])}], .. "
+                print(f"Epoch, Steps [{epoch + 1}/{num_epochs}, {i + 1}/{len(loaders['train'])}], .. "
                       f"Train loss: {running_loss / print_every:.3f}.. "
                       f"Test loss: {test_loss / m:.3f}.. "
                       f"Test accuracy: {accuracy / m:.3f}")
-                running_loss = 0
+                wandb.log({
+                    'epoch': epoch,
+                    'test_loss': test_loss/m,
+                    'test_acc': accuracy/m
+
+                })
+
+
+        running_loss = 0
+
 
 
 def train_f(xy_init, n_iter, optimizer, loss_func):
@@ -126,3 +152,14 @@ def train_f(xy_init, n_iter, optimizer, loss_func):
         path[i, :] = xy_t.cpu().detach().numpy()
 
     return path
+
+
+def print_path(path):
+    plt.plot(path[:, 0], path[:, 1], 'ro')
+    plt.plot(path[:, 0], path[:, 1])
+    plt.show()
+
+
+def print_loss(loss, minimum):
+    plt.plot(range(len(loss)), loss - minimum)
+    plt.show()

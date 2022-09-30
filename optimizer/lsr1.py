@@ -8,7 +8,7 @@ Original file is located at
 """
 
 import torch
-import scipy.optimize as sp
+#import scipy.optimize as sp
 from functools import reduce
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -689,8 +689,6 @@ class LSR1(torch.optim.Optimizer):
         # tensors cached in state (for tracing)
         d = state.get('d')
         v = state.get('v')
-        V = state.get('V')
-        W = state.get('W')
         alpha = state.get('alpha')
         old_s = state.get('old_s')
         old_y = state.get('old_y')
@@ -701,10 +699,8 @@ class LSR1(torch.optim.Optimizer):
         y = state.get('y')
         T = state.get('T')
         rho = state.get('rho')
-        previous_P = state.get('previous_P')
-        previous_lam = state.get('previous_lam')
 
-        if tr_rho == None:
+        if tr_rho is None:
             tr_rho = tr_radius
 
         # dimension of the data
@@ -731,8 +727,6 @@ class LSR1(torch.optim.Optimizer):
                 hess_1 = torch.ones(1).to(device)
                 gamma = 1
                 v = torch.zeros(dim_hess).to(device)
-                V = torch.zeros((1, 1)).to(device)
-                W = torch.zeros((1, 1)).to(device)
                 s = torch.zeros(dim_hess).to(device)
                 y = torch.zeros(dim_hess).to(device)
                 T = 0
@@ -763,20 +757,7 @@ class LSR1(torch.optim.Optimizer):
 
                 # calculate the components of the hessian matrix
                 P, lamb_gamma = self.calculate_hess(psi, M_inverse, gamma)  # 5
-                V = 0.1 * V + 0.1 * W
-                if previous_P == None:
-                    W = torch.diag(lamb_gamma) - gamma * torch.matmul(torch.transpose(P, 0, 1), P)
-                    previous_P = P
-                    previous_lam = lamb_gamma
-                else:
-                    PP = torch.matmul(torch.transpose(P, 0, 1), previous_P)
-                    PP_T = torch.transpose(PP, 0, 1)
-                    V = torch.matmul(torch.matmul(PP, torch.diag(previous_lam)), PP_T)
-                    W = torch.diag(lamb_gamma) - V
-                    previous_P = P
-                    previous_lam = lamb_gamma
-                # a = min(1, tr_rho/torch.linalg.norm(V))
-                hess_1 = torch.matmul(P, torch.diag(lamb_gamma) + 0 * V)
+                hess_1 = torch.matmul(P, torch.diag(lamb_gamma))
                 hess_2 = torch.transpose(P, 0, 1)
 
                 # get the new search direction with Trust Region     #6
@@ -799,7 +780,7 @@ class LSR1(torch.optim.Optimizer):
             g_norm = abs(torch.linalg.norm(flat_grad))
             if min(dg, dg / d_norm) < g_norm * 5e-10:  # 8
 
-                # the for_ever is useful to avoid enless loops
+                # the for_ever is useful to avoid endless loops
                 if is_forever == 1:
                     old_s = []
                     old_y = []
@@ -807,8 +788,6 @@ class LSR1(torch.optim.Optimizer):
                     y = None
                     v = None
                     state['n_iter'] = 0
-                    previous_lam = None
-                    previous_P = None
                     break
                 n_iter = 0
                 state['n_iter'] = 0
@@ -816,7 +795,6 @@ class LSR1(torch.optim.Optimizer):
                 continue
 
             # We need this for the actual prediction
-            norm_g = torch.linalg.norm(flat_grad)
             if len(hess_1.shape) != 1:
                 dH = torch.matmul(d, hess_1)
                 Hd = torch.matmul(hess_2, d)
@@ -850,15 +828,15 @@ class LSR1(torch.optim.Optimizer):
             else:
                 alpha = lr
 
-            # update prev_loss
-            prev_loss_t = loss
-
             # update prev_flat_grad
             # From torch.optim.LBFGS
             if prev_flat_grad is None:
                 prev_flat_grad = flat_grad.clone(memory_format=torch.contiguous_format)
             else:
                 prev_flat_grad.copy_(flat_grad)
+
+            prev_loss = loss
+
             # 10
             #############################################################
             #######               gradient step                 #########
@@ -880,7 +858,7 @@ class LSR1(torch.optim.Optimizer):
                 # sometimes the search direction is so bad, that alpha can be zero
                 # or very big. This produces nan in the loss
                 # Avoid this and break
-                if alpha_t > 1e-10 and alpha_t < 500:
+                if 1e-10 < alpha_t < 500:
                     alpha = alpha_t
                     loss = loss_t
                     flat_grad = flat_grad_t
@@ -893,18 +871,15 @@ class LSR1(torch.optim.Optimizer):
                     y = None
                     v = None
                     state['n_iter'] = 0
-                    previous_lam = None
-                    previous_P = None
                     break
             else:
                 # no line search, simply move with fixed-step
                 self._add_grad(alpha, d)
                 if n_iter != max_iter:
                     with torch.enable_grad():
-                        loss_t = float(closure())
+                        loss = float(closure())
                     flat_grad = self._gather_flat_grad()
                     opt_cond = flat_grad.abs().max() <= tolerance_grad
-                    ls_func_evals = 1
             # calculate y
             y = flat_grad.sub(prev_flat_grad)  # 10
 
@@ -912,8 +887,6 @@ class LSR1(torch.optim.Optimizer):
             s = alpha * s  # 10
             cond_rest = alpha * cond_rest
 
-            # update prev_loss
-            prev_loss = prev_loss_t  # 10
             # 11
             #############################################################
             #######               update S,Y                    #########
@@ -924,8 +897,6 @@ class LSR1(torch.optim.Optimizer):
                 y = None
                 v = None
                 state['n_iter'] = 0
-                previous_lam = None
-                previous_P = None
                 break
             # 12
             #############################################################
@@ -955,8 +926,6 @@ class LSR1(torch.optim.Optimizer):
                 y = None
                 v = None
                 state['n_iter'] = 0
-                previous_lam = None
-                previous_P = None
                 break
 
             # From torch.optim.LBFGS
@@ -968,8 +937,6 @@ class LSR1(torch.optim.Optimizer):
                 y = None
                 v = None
                 state['n_iter'] = 0
-                previous_lam = None
-                previous_P = None
                 break
 
             # From torch.optim.LBFGS
@@ -980,8 +947,6 @@ class LSR1(torch.optim.Optimizer):
                 y = None
                 v = None
                 state['n_iter'] = 0
-                previous_lam = None
-                previous_P = None
                 break
 
         state['d'] = d
@@ -992,13 +957,10 @@ class LSR1(torch.optim.Optimizer):
         state['prev_loss'] = loss
         state['tr_rho'] = tr_rho
         state['v'] = v
-        state['V'] = V
-        state['W'] = W
         state['s'] = s
         state['y'] = y
         state['T'] = T
         state['rho'] = rho
-        state['previous_lam'] = previous_lam
-        state['previous_P'] = previous_P
+
 
         return orig_loss
