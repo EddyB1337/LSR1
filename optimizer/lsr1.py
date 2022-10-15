@@ -8,7 +8,7 @@ Original file is located at
 """
 
 import torch
-#import scipy.optimize as sp
+# import scipy.optimize as sp
 from functools import reduce
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -243,7 +243,7 @@ class LSR1(torch.optim.Optimizer):
                  newton_maxit=None,
                  cg_iter=None,
                  line_search_fn="strong_wolfe",
-                 trust_solver="Steihaug_cg"):
+                 trust_solver="OBS"):
         defaults = dict(
             lr=lr,
             max_iter=max_iter,
@@ -324,7 +324,7 @@ class LSR1(torch.optim.Optimizer):
         self._set_param(x)
         return loss, flat_grad
 
-    def trust_solver_OBS(self, M_inverse, P, lamb_gamma, tr_rho, gamma, flat_grad, psi):
+    def trust_solver_OBS(self, M, P, lamb_gamma, tr_rho, gamma, flat_grad, psi):
         """
       .. The function solve a trust region subproblem with the Orthonomal Basis method.
          This was copied from https://github.com/MATHinDL/sL_QN_TR.
@@ -380,9 +380,9 @@ class LSR1(torch.optim.Optimizer):
             llpll = torch.linalg.norm(a / t)
             return 1 / llpll - 1 / delta
 
-        def equation_p1(psi, M_inverse, tau_star, flat_grad):
+        def equation_p1(psi, M, tau_star, flat_grad):
             psi_T = torch.transpose(psi, 0, 1)
-            Z = tau_star * M_inverse + torch.matmul(psi_T, psi)
+            Z = tau_star * M + torch.matmul(psi_T, psi)
             f = torch.matmul(psi_T, flat_grad)
             Zf = torch.linalg.solve(Z, f)
             return -(flat_grad - torch.matmul(psi, Zf)) / tau_star
@@ -396,7 +396,7 @@ class LSR1(torch.optim.Optimizer):
             if torch.abs(gamma + sigma) < 1e-10:
                 p = -torch.matmul(P, v[:-1])
             else:
-                p = -torch.matmul(P, v[:-1]) - (g - torch.matmul(P, g_l)) / (gamma + sigma)
+                p = -torch.matmul(P_l, v[:-1]) - (g - torch.matmul(P_l, g_l)) / (gamma + sigma)
             return p
 
         def equation_p3(lam_min, delta, p_hat, lam, P):
@@ -408,16 +408,19 @@ class LSR1(torch.optim.Optimizer):
                 n, k = P.shape[0], P.shape[1]
                 e = torch.zeros(n)
                 found = 0
+                j = 0
                 for i in range(k):
                     e[i] = 1
                     u_min = e - torch.matmul(P, torch.transpose(P, 0, 1)[:, i])
                     if torch.linalg.norm(u_min) > 1e-10:
                         found = 1
+                        j = i
                         break
+                    j = i
                     e[i] = 0
                 if found == 0:
-                    e[i + 1] = 1
-                    u_min = e - torch.matmul(P, torch.transpose(P, 0, 1)[:, i + 1])
+                    e[j + 1] = 1
+                    u_min = e - torch.matmul(P, torch.transpose(P, 0, 1)[:, j + 1])
                 u_min = u_min / torch.linalg.norm(u_min)
                 z_star = alpha * u_min
             return p_hat + z_star
@@ -452,8 +455,9 @@ class LSR1(torch.optim.Optimizer):
         if phi(0, tr_rho, a, lam_all) >= 0 and lam_min > 0:
             sigma_star = 0
             tau_star = gamma + sigma_star
-            p_star = equation_p1(psi, M_inverse, tau_star, flat_grad)
-        if lam_min <= 0 and phi(-lam_min, tr_rho, a, lam_all) >= 0:
+            p_star = equation_p1(psi, M, tau_star, flat_grad)
+            return p_star
+        if lam_min <= 0 <= phi(-lam_min, tr_rho, a, lam_all):
             sigma_star = -lam_min
             p_star = equation_p2(sigma_star, gamma, flat_grad, a, lam_all, P, g_ll)
             if lam_min < 0:
@@ -469,7 +473,7 @@ class LSR1(torch.optim.Optimizer):
                 else:
                     sigma_star = newton_method(flat_grad, -lam_min, tr_rho, a, lam_all)
             tau_star = sigma_star + gamma
-            p_star = equation_p1(psi, M_inverse, tau_star, flat_grad)
+            p_star = equation_p1(psi, M, tau_star, flat_grad)
         return p_star
 
     def calculate_M(self, S, Y, gamma):
@@ -498,7 +502,7 @@ class LSR1(torch.optim.Optimizer):
         return M, psi
 
     # calculate hess with limited memory method
-    def calculate_hess(self, psi, M_inverse, gamma):
+    def calculate_hess(self, psi, M_inverse):
         """
       .. Return P and lambdas+gamma. This are the components of the hess matrix.
         hess = P *diag(gamma+lambdas) * P^T. For this do a thin qr factorisation
@@ -519,7 +523,7 @@ class LSR1(torch.optim.Optimizer):
         lamb, U = torch.linalg.eig(RMR)
 
         # create last orthogonal matrix P = QU and return
-        return torch.mm(Q, U.float()), gamma + lamb.float()
+        return torch.mm(Q, U.float()), lamb.float()
 
     def update_SY(self, s, y, old_s, old_y, cond_rest):
         """
@@ -559,7 +563,7 @@ class LSR1(torch.optim.Optimizer):
           T (float) : A iteration parameter, it is used to do the radius stochastic
           rho (float) : A iteration parameter, it is used to do the radius stochastic
       """
-        rho = 0.5 * T * rho + r
+        rho = 0.5 * T * rho - r
         T = 0.5 * T + 1
         rho = rho / T
         norm_s = torch.linalg.norm(s)
@@ -648,7 +652,7 @@ class LSR1(torch.optim.Optimizer):
                 and returns the loss.
         """
         assert len(self.param_groups) == 1
-        # 1
+
         # From torch.optim.LBFGS
         # Make sure the closure is always called with grad enabled
         closure = torch.enable_grad()(closure)
@@ -671,7 +675,7 @@ class LSR1(torch.optim.Optimizer):
         # NOTE: LSR1 has only global state, but we register it as state for
         # the first param, because this helps with casting in load_state_dict
         state = self.state[self._params[0]]
-        state.setdefault('n_iter', 0)
+        state.setdefault('restart', 1)  # step 2
 
         # get loss
         # evaluate initial f(x) and df/dx
@@ -687,13 +691,12 @@ class LSR1(torch.optim.Optimizer):
             return orig_loss
 
         # tensors cached in state (for tracing)
-        d = state.get('d')
+        delta_w = state.get('d')
         v = state.get('v')
         alpha = state.get('alpha')
         old_s = state.get('old_s')
         old_y = state.get('old_y')
         prev_flat_grad = state.get('prev_flat_grad')
-        prev_loss = state.get('prev_loss')
         tr_rho = state.get('tr_rho')
         s = state.get('s')
         y = state.get('y')
@@ -705,125 +708,109 @@ class LSR1(torch.optim.Optimizer):
 
         # dimension of the data
         dim_hess = flat_grad.shape[0]
-
         n_iter = 0
-        is_forever = 0
         # optimize for a max of max_iter iterations
-        while n_iter < max_iter:  # 2
+        while n_iter < max_iter:
             # keep track of iterations
-            n_iter += 1  # 3
-            state['n_iter'] += 1
-
+            n_iter += 1
             ############################################################
             ####       compute gradient descent direction           ####
             ############################################################
-            if state['n_iter'] == 1:
+            if state['restart'] == 1:  # step 4-10
+                state['restart'] = 0
                 # the first direction is the normal gradient
                 # initialize parameters of the first step
-                d = flat_grad.neg()
+                delta_w = flat_grad.neg()
                 old_s = []
                 old_y = []
-                hess_2 = torch.ones(1).to(device)
-                hess_1 = torch.ones(1).to(device)
+                P = torch.ones(1).to(device)
+                L = torch.ones(1).to(device)
                 gamma = 1
                 v = torch.zeros(dim_hess).to(device)
                 s = torch.zeros(dim_hess).to(device)
                 y = torch.zeros(dim_hess).to(device)
                 T = 0
                 rho = 0
-            else:
-                if torch.linalg.norm(flat_grad) < tolerance_grad:
-                    state['n_iter'] = 0
-                    break
-
+            else:  # step 11 to 21
                 # stack the list to a tensor 
                 S = torch.transpose(torch.stack(old_s), 0, 1)
                 Y = torch.transpose(torch.stack(old_y), 0, 1)
 
                 # calculate gamma like in Stabilizied Barzilai-Borwein Method
                 # from Oleg Burdakov, Yu-Hong Dai, Na Huang
-                gamma = max(1, torch.matmul(old_s[-1], old_s[-1]) / (torch.matmul(old_s[-1], old_y[-1])))
+                gamma = max(0.1, torch.matmul(old_s[-1], old_s[-1]) / (torch.matmul(old_s[-1], old_y[-1])))  # step 12
                 gamma = max(gamma, torch.matmul(old_s[-1], old_y[-1]) / (torch.matmul(old_y[-1], old_y[-1])))
                 # calculate M and psi
-                M, psi = self.calculate_M(S, Y, gamma)  # 3
+                M, psi = self.calculate_M(S, Y, gamma)  # step 13
 
                 # check singular
-                if torch.det(M) == 0:
-                    state['n_iter'] = 0
+                if torch.det(M) == 0:  # step 14-17
+                    state['restart'] = 1
+                    print("A")
                     break
 
                 # calculate the inverse of M
-                M_inverse = torch.linalg.solve(M, torch.eye(M.shape[0]).to(device))  # 4
+                M_inverse = torch.linalg.solve(M, torch.eye(M.shape[0]).to(device))  # step 18
 
                 # calculate the components of the hessian matrix
-                P, lamb_gamma = self.calculate_hess(psi, M_inverse, gamma)  # 5
-                hess_1 = torch.matmul(P, torch.diag(lamb_gamma))
-                hess_2 = torch.transpose(P, 0, 1)
+                P, lamb = self.calculate_hess(psi, M_inverse)  # step 19
+                L = lamb * P
+                P = torch.transpose(P, 0, 1)
 
-                # get the new search direction with Trust Region     #6
+                # get the new search direction with Trust Region     #step 20
                 if trust_solver == "Cauchy_Point_Calculation":
-                    d = self.trust_solver_cauchy(flat_grad, hess_1, hess_2, tr_rho)
+                    delta_w = self.trust_solver_cauchy(flat_grad, L, P, tr_rho)
                 if trust_solver == "Steihaug_cg" or trust_solver == None:
-                    d = self.trust_solver_steihaug(flat_grad, hess_1, hess_2, tr_rho)
+                    delta_w = self.trust_solver_steihaug(flat_grad, L, P, tr_rho)
                 if trust_solver == "OBS":
-                    d = self.trust_solver_OBS(M_inverse, P, lamb_gamma, tr_rho, gamma, flat_grad, psi)
-            # do some other options: momentum etc.     #7
-            v = mu * v - nu * alpha_S * flat_grad + (1 - nu) * s
+                    delta_w = self.trust_solver_OBS(M, torch.transpose(P, 0, 1), lamb + gamma, tr_rho, gamma, flat_grad,
+                                                    psi)
+            # do some other options: momentum etc.
+            v = mu * v - nu * alpha_S * flat_grad + (1 - nu) * s  # step 22
             v = min(1, tr_rho / torch.linalg.norm(v)) * v
-            d = (1 - nu) * d + mu * v
-            d = min(1, tr_rho / torch.linalg.norm(d)) * d
-            d = d.to(device)
-            dg = abs(torch.matmul(d, flat_grad))
+            delta_w = (1 - nu) * delta_w + mu * v  # step 23
+            delta_w = min(1, tr_rho / torch.linalg.norm(delta_w)) * delta_w
+            delta_w = delta_w.to(device)
+            dg = abs(torch.matmul(delta_w, flat_grad))
 
             # check if the serch direction is too orthogonal to gradient
-            d_norm = abs(torch.linalg.norm(d))
+            d_norm = abs(torch.linalg.norm(delta_w))
             g_norm = abs(torch.linalg.norm(flat_grad))
-            if min(dg, dg / d_norm) < g_norm * 5e-10:  # 8
-
-                # the for_ever is useful to avoid endless loops
-                if is_forever == 1:
-                    old_s = []
-                    old_y = []
-                    s = None
-                    y = None
-                    v = None
-                    state['n_iter'] = 0
-                    break
-                n_iter = 0
-                state['n_iter'] = 0
-                is_forever += 1
-                continue
+            if min(dg, dg / d_norm) < g_norm * 5e-10:  # step 24-27
+                state['restart'] = 1
+                break
 
             # We need this for the actual prediction
-            if len(hess_1.shape) != 1:
-                dH = torch.matmul(d, hess_1)
-                Hd = torch.matmul(hess_2, d)
+            if len(L.shape) != 1:
+                dH = torch.matmul(delta_w, L)
+                Hd = torch.matmul(P, delta_w)
                 dHd = torch.matmul(dH, Hd)
+                dHd = dHd + gamma * torch.matmul(delta_w, delta_w)
             else:
-                dHd = gamma * torch.matmul(d, d)
+                dHd = gamma * torch.matmul(delta_w, delta_w)
 
             #############################################################
             #######     set lr, s, previous loss and flat_grad  #########
             #############################################################
             # From torch.optim.LBFGS
             # directional derivative
-            gtd = flat_grad.dot(d)  # g * d    #9
+            gtd = flat_grad.dot(delta_w)  # g * d    #9
             # check descent direction
-            if gtd > 0:
-                d = -d
+            if gtd > 0:  # step 28-30
+                delta_w = -delta_w
 
             # set s/alpha and a part of update condition/alpha
-            s = torch.clone(d).to(device)
-            if len(hess_1.shape) != 1:
-                sH = torch.matmul(s, hess_1)
-                Hs = torch.matmul(hess_2, s)
-                cond_rest = torch.matmul(sH, Hs)
+            s = torch.clone(delta_w).to(device)
+            if len(L.shape) != 1:
+                sH = torch.matmul(s, L)
+                Hs = torch.matmul(P, s)
+                cond_rest = torch.matmul(sH, Hs) + gamma * torch.matmul(s, s)
             else:
                 cond_rest = gamma * torch.matmul(s, s)
 
             # From torch.optim.LBFGS
             # reset initial guess for step size
-            if state['n_iter'] == 1:
+            if state['restart'] == 1:
                 alpha = min(1., 1. / flat_grad.abs().sum()) * lr
             else:
                 alpha = lr
@@ -842,7 +829,7 @@ class LSR1(torch.optim.Optimizer):
             #######               gradient step                 #########
             #############################################################
             # From torch.optim.LBFGS
-            # optional line search: user function
+            # optional line search: user function   #step 31-32
             if line_search_fn is not None:
                 # perform line search, using user function
                 if line_search_fn != "strong_wolfe":
@@ -853,64 +840,66 @@ class LSR1(torch.optim.Optimizer):
                     def obj_func(x, t, d):
                         return self._directional_evaluate(closure, x, t, d)
 
-                    loss_t, flat_grad_t, alpha_t, _ = _strong_wolfe(
-                        obj_func, x_init, alpha, d, loss, flat_grad, gtd)
+                    loss, flat_grad, alpha, _ = _strong_wolfe(
+                        obj_func, x_init, alpha, delta_w, loss, flat_grad, gtd)
+                    self._add_grad(alpha, delta_w)
+                    opt_cond = flat_grad.abs().max() <= tolerance_grad
                 # sometimes the search direction is so bad, that alpha can be zero
                 # or very big. This produces nan in the loss
                 # Avoid this and break
-                if 1e-10 < alpha_t < 500:
+                '''if 1e-10 < alpha_t < 500:
                     alpha = alpha_t
                     loss = loss_t
                     flat_grad = flat_grad_t
-                    self._add_grad(alpha, d)
+                    self._add_grad(alpha, delta_w)
                     opt_cond = flat_grad.abs().max() <= tolerance_grad
+                    
                 else:
-                    old_s = []
-                    old_y = []
-                    s = None
-                    y = None
-                    v = None
-                    state['n_iter'] = 0
+                    state['restart'] = 1
+                    break'''
+                if opt_cond:
+                    state['restart'] = 1
                     break
             else:
                 # no line search, simply move with fixed-step
-                self._add_grad(alpha, d)
+                self._add_grad(alpha, delta_w)
                 if n_iter != max_iter:
                     with torch.enable_grad():
                         loss = float(closure())
                     flat_grad = self._gather_flat_grad()
                     opt_cond = flat_grad.abs().max() <= tolerance_grad
-            # calculate y
-            y = flat_grad.sub(prev_flat_grad)  # 10
+                    if opt_cond:
+                        state['restart'] = 1
+                        break
 
-            # now we know alpha so we can use it
-            s = alpha * s  # 10
+            s = alpha * s  # step 38
+            y = flat_grad.sub(prev_flat_grad)  # step 39
             cond_rest = alpha * cond_rest
 
-            # 11
             #############################################################
             #######               update S,Y                    #########
             #############################################################
-            self.update_SY(s, y, old_s, old_y, cond_rest)
+            self.update_SY(s, y, old_s, old_y, cond_rest)  # step 40
             if len(old_s) == 0:
-                s = None
-                y = None
-                v = None
-                state['n_iter'] = 0
+                state['restart'] = 1
                 break
-            # 12
+
             #############################################################
             #######               calculate ratio               #########
             #############################################################  
-            ared = loss - prev_loss
-            pred = loss + torch.matmul(flat_grad, d) + dHd
-            r = ared / pred
-            # 13
+            ared = prev_loss - loss  # step 41
+            # From torch.optim.LBFGS
+            if abs(ared) < tolerance_change:  # step 42-45
+                state['restart'] = 1
+                break
+            pred = loss + torch.matmul(flat_grad, delta_w) + 0.5 * dHd  # step 46
+            r = ared / pred  # step 47
+
             #############################################################
             #######               update radius                 #########
             #############################################################
-            tr_rho, rho, T = self.update_radius(r, tr_rho, s, T, rho)
-            # 14
+            tr_rho, rho, T = self.update_radius(r, tr_rho, s, T, rho)  # step 48
+
             ############################################################
             #####               check conditions                  ######
             ############################################################
@@ -918,49 +907,16 @@ class LSR1(torch.optim.Optimizer):
             if n_iter == max_iter:
                 break
 
-            # optimal condition, gradient is not zero
-            if opt_cond:
-                old_s = []
-                old_y = []
-                s = None
-                y = None
-                v = None
-                state['n_iter'] = 0
-                break
-
-            # From torch.optim.LBFGS
-            # lack of progress
-            if d.mul(alpha).abs().max() <= tolerance_change:
-                old_s = []
-                old_y = []
-                s = None
-                y = None
-                v = None
-                state['n_iter'] = 0
-                break
-
-            # From torch.optim.LBFGS
-            if abs(loss - prev_loss) < tolerance_change:
-                old_s = []
-                old_y = []
-                s = None
-                y = None
-                v = None
-                state['n_iter'] = 0
-                break
-
-        state['d'] = d
+        state['d'] = delta_w
         state['alpha'] = alpha
         state['old_s'] = old_s
         state['old_y'] = old_y
         state['prev_flat_grad'] = flat_grad
-        state['prev_loss'] = loss
         state['tr_rho'] = tr_rho
         state['v'] = v
         state['s'] = s
         state['y'] = y
         state['T'] = T
         state['rho'] = rho
-
 
         return orig_loss

@@ -1,7 +1,9 @@
-pytorch == 1.10.2
+torch == 1.12.1
 #scipy == 1.7.3
-torchvision == 0.11.3
+torchvision == 0.13.1
 
 numpy==1.23.1
 tqdm==4.64.1
 matplotlib==3.5.2
+
+wandb==0.13.4
