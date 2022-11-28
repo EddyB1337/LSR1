@@ -20,7 +20,7 @@ traindt, testdt = get_data_mnist()
 
 # Create a model, choose two numbers, its the size of our model
 size = [3, 3]  # small modell
-model = CNN(size)
+model = CNN(size).to(device)
 
 # Define loss function
 loss_func = nn.CrossEntropyLoss()
@@ -29,7 +29,7 @@ optimizer_LSR1f = LSR1(model.parameters(), trust_solver="OBS")
     # Train
     # print(sweep_id)
     # wandb.watch(model)
-train(10, model, 256, optimizer_LSR1f, traindt, testdt, loss_func)
+train(1, model, 256, optimizer_LSR1f, traindt, testdt, loss_func)
 sweep_configuration = {
     'method': 'random',
     'name': 'sweep',
@@ -51,7 +51,7 @@ sweep_id = wandb.sweep(sweep=sweep_configuration, project="LSR1")
 def test():
     run = wandb.init()
     # Set epochs
-    epochs = 100
+    epochs = 10
 
     # Set batch size
     batch_size = wandb.config.batch_size
