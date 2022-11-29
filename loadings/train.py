@@ -11,10 +11,9 @@ running_loss = 0
 print_every = 10
 
 
-
 def train(num_epochs, cnn, batch_size, optimizer, train_data, test_data, loss_func):
     num_work = 4
-    if device == "cpu":
+    if torch.cuda.is_available() == False:
         num_work = 0
     run = wandb.init()
     loaders = {
@@ -67,9 +66,9 @@ def train(num_epochs, cnn, batch_size, optimizer, train_data, test_data, loss_fu
             optimizer.zero_grad()
             wandb.log({
                 'epoch': epoch,
-                'train_loss': running_loss/(i+1),
+                'train_loss': running_loss / (i + 1),
             })
-            if (i + 1) % 10 == 0:
+            '''if (i + 1) % 10 == 0:
                 test_loss = 0
                 accuracy = 0
                 cnn.eval()
@@ -97,5 +96,32 @@ def train(num_epochs, cnn, batch_size, optimizer, train_data, test_data, loss_fu
                     'test_loss': test_loss/m,
                     'test_acc': accuracy/m
                 })
-        running_loss = 0
+        running_loss = 0'''
+        test_loss = 0
+        accuracy = 0
+        cnn.eval()
+        with torch.no_grad():
+            for inputs, labelss in loaders['test']:
+                inputs, labelss = inputs.to(device), labelss.to(device)
+                b_xx = Variable(inputs)  # batch x
+                b_yy = Variable(labelss)  # batch y
+                logps = cnn(b_xx)[0]
+                batch_loss = loss_func(logps, b_yy)
+                test_loss += batch_loss.item()
 
+                ps = torch.exp(logps)
+                top_p, top_class = ps.topk(1, dim=1)
+                equals = top_class == labelss.view(*top_class.shape)
+                accuracy += torch.mean(equals.type(torch.FloatTensor)).item()
+        train_losses.append(running_loss / n)
+        test_losses.append(test_loss / m)
+        print(f"Epoch, Steps [{epoch + 1}/{num_epochs}, {i + 1}/{n}], .. "
+              f"Train loss: {running_loss / n:.3f}.. "
+              f"Test loss: {test_loss / m:.3f}.. "
+              f"Test accuracy: {accuracy / m:.3f}")
+        wandb.log({
+            'epoch': epoch,
+            'test_loss': test_loss / m,
+            'test_acc': accuracy / m
+        })
+    running_loss = 0

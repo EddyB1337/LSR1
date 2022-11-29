@@ -771,7 +771,7 @@ class LSR1(torch.optim.Optimizer):
                 state['restart'] = 1
                 break
 
-            # We need this for the actual prediction
+            # We need this for the current prediction
             if len(L.shape) != 1:
                 dH = torch.matmul(delta_w, L)
                 Hd = torch.matmul(P, delta_w)
