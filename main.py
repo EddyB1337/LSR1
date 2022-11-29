@@ -1,10 +1,10 @@
 import torch
 import torch.nn as nn
-import wandb
+#import wandb
 from loadings.getDataMnist import get_data_mnist
 from models.cnn import CNN
 from optimizer.lsr1 import LSR1
-from loadings.train import train, train_f, print_path, print_loss
+from loadings.train import train
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -24,13 +24,13 @@ model = CNN(size).to(device)
 
 # Define loss function
 loss_func = nn.CrossEntropyLoss()
-optimizer_LSR1f = LSR1(model.parameters(), trust_solver="OBS")
+optimizer_LSR1 = LSR1(model.parameters(), trust_solver="OBS")
 
     # Train
     # print(sweep_id)
     # wandb.watch(model)
-train(1, model, 256, optimizer_LSR1f, traindt, testdt, loss_func)
-sweep_configuration = {
+train(10, model, 256, optimizer_LSR1, traindt, testdt, loss_func)
+'''sweep_configuration = {
     'method': 'random',
     'name': 'sweep',
     'metric': {'goal': 'maximize', 'name': 'test_acc'},
@@ -78,8 +78,8 @@ def test():
 
     # Train
     # print(sweep_id)
-    # wandb.watch(model)
+    wandb.watch(model)
     train(epochs, model, batch_size, optimizer_LSR1, traindt, testdt, loss_func)
 
 
-wandb.agent(sweep_id, function=test)
+wandb.agent(sweep_id, function=test)'''

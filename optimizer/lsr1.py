@@ -196,7 +196,7 @@ def _strong_wolfe(obj_func,
 
 class LSR1(torch.optim.Optimizer):
     """
-    .. Class of the the limited memory symmetric rank-1 update. 
+    .. Class of the limited memory symmetric rank-1 update.
         The first six functions are from torch.optim.LBFGS. 
         The step function has some parts which is from torch.optim.LBFGS.
 
@@ -222,11 +222,11 @@ class LSR1(torch.optim.Optimizer):
         mu (float): \in (0,1) hyperparameter for momentum (default: 0.75)
         nu (float): \in (0,1) hyperparameter for s (default: 0.75)
         alpha_S (float): \in (0,1) hyperparameter for momentum (default: 0)
-        newton_maxit (int): max newton iteration for trust OBS solver (default: n)
-        cg_iter (int): max iteration for Trust Steihaug cg solver (default: n)
+        newton_maxit (int): max newton iteration for trust OBS solver (default: 1000)
+        cg_iter (int): max iteration for Trust Steihaug cg solver (default: 1000)
         line_search_fn (str): either 'strong_wolfe' or None (default: 'strong_wolfe').
         trust_solver (str): either 'OBS' or 'Cauchy_Point_Calculation' 
-            or 'Steihaug_cg' (default: Steihaug_cg)
+            or 'Steihaug_cg' (default: OBS)
     """
 
     def __init__(self,
@@ -240,8 +240,8 @@ class LSR1(torch.optim.Optimizer):
                  mu=0.75,
                  nu=0.75,
                  alpha_S=0,
-                 newton_maxit=None,
-                 cg_iter=None,
+                 newton_maxit=1000,
+                 cg_iter=1000,
                  line_search_fn="strong_wolfe",
                  trust_solver="OBS"):
         defaults = dict(
@@ -275,8 +275,6 @@ class LSR1(torch.optim.Optimizer):
         self.cg_iter = self.param_groups[0]['cg_iter']
 
     # From torch.optim.LBFGS
-    # im not sure what happens
-    # its needed for the flat_grad
     def _numel(self):
         if self._numel_cache is None:
             self._numel_cache = reduce(lambda total, p: total + p.numel(), self._params, 0)
@@ -297,7 +295,7 @@ class LSR1(torch.optim.Optimizer):
         return torch.cat(views, 0)
 
     # From torch.optim.LBFGS
-    # do the update 
+    # do the update step
     def _add_grad(self, step_size, update):
         offset = 0
         for p in self._params:
@@ -427,8 +425,6 @@ class LSR1(torch.optim.Optimizer):
 
         def newton_method(flat_grad, sigma, tr_rho, a, lam_all):
             newton_tol = 1e-15
-            if self.newton_maxit == None:
-                self.newton_maxit = flat_grad.shape[0]
             k = 0
             s = sigma
             phi, phi_T = phi_phi_T(s, tr_rho, a, lam_all)
@@ -487,8 +483,6 @@ class LSR1(torch.optim.Optimizer):
           Y (torch.tensor) : matrix which contains the old y as columns
           gamma (float) : the scalar for the initial hess matrix 
       """
-        dim_hess = S.shape[0]
-
         # B_{k} = B_0 + psi * M^{-1} * psi
         psi = Y - gamma * S
 
@@ -512,7 +506,7 @@ class LSR1(torch.optim.Optimizer):
       Args:
           S (torch.Tensor): saved s as a matrix, S.shape = (n, history_size)
           Y (torch.Tensor): saved y as a matrix, Y.shape = (n, history_size)
-          gamma (float): skalar of initial hesse matrix
+          gamma (float): scalar of initial hesse matrix
       """
         # thin q-r factorisation of phi
         Q, R = torch.linalg.qr(psi, mode="reduced")
@@ -530,10 +524,10 @@ class LSR1(torch.optim.Optimizer):
       .. Update S and Y. Pop the first if history_size is reached.
 
       Args:
-          s (torch.Tensor): actual s
-          y (torch.Tensor): actual y
-          old_s (list): list with tensors last s
-          old_y (list): list with tensors last y
+          s (torch.Tensor): currently s
+          y (torch.Tensor): currently y
+          old_s (list): a list with the last s as tensors
+          old_y (list):  a list with the last y as tensors
           cond_rest (float): one part of the condition to update S or Y
 
       """
@@ -607,9 +601,6 @@ class LSR1(torch.optim.Optimizer):
           hess_2 (torch.tensor) : P*diag(gamma+lambda)*P^T = hess, hess_2 = P^T
           tr_rho (float) : the trust radius
       """
-        n = flat_grad.shape[0]
-        if self.cg_iter == None:
-            self.cg_iter = n
         z = torch.zeros(n).to(device)
         r = flat_grad
         d = -r
@@ -661,7 +652,6 @@ class LSR1(torch.optim.Optimizer):
         group = self.param_groups[0]
         lr = group['lr']
         max_iter = group['max_iter']
-        newton_maxit = group['newton_maxit']
         tolerance_grad = group['tolerance_grad']
         tolerance_change = group['tolerance_change']
         line_search_fn = group['line_search_fn']
@@ -744,9 +734,10 @@ class LSR1(torch.optim.Optimizer):
                 M, psi = self.calculate_M(S, Y, gamma)  # step 13
 
                 # check singular
-                if torch.det(M) == 0:  # step 14-17
+                l, _ = torch.linalg.eig(M)
+                if min(torch.abs(l) < 1e-16):  # step 14-17
+                    print("AA")
                     state['restart'] = 1
-                    print("A")
                     break
 
                 # calculate the inverse of M
@@ -760,7 +751,7 @@ class LSR1(torch.optim.Optimizer):
                 # get the new search direction with Trust Region     #step 20
                 if trust_solver == "Cauchy_Point_Calculation":
                     delta_w = self.trust_solver_cauchy(flat_grad, L, P, tr_rho)
-                if trust_solver == "Steihaug_cg" or trust_solver == None:
+                if trust_solver == "Steihaug_cg" or trust_solver is None:
                     delta_w = self.trust_solver_steihaug(flat_grad, L, P, tr_rho)
                 if trust_solver == "OBS":
                     delta_w = self.trust_solver_OBS(M, torch.transpose(P, 0, 1), lamb + gamma, tr_rho, gamma, flat_grad,
@@ -840,26 +831,21 @@ class LSR1(torch.optim.Optimizer):
                     def obj_func(x, t, d):
                         return self._directional_evaluate(closure, x, t, d)
 
-                    loss, flat_grad, alpha, _ = _strong_wolfe(
+                    loss, flat_grad, alpha_t, _ = _strong_wolfe(
                         obj_func, x_init, alpha, delta_w, loss, flat_grad, gtd)
-                    self._add_grad(alpha, delta_w)
-                    opt_cond = flat_grad.abs().max() <= tolerance_grad
+
                 # sometimes the search direction is so bad, that alpha can be zero
                 # or very big. This produces nan in the loss
                 # Avoid this and break
-                '''if 1e-10 < alpha_t < 500:
-                    alpha = alpha_t
-                    loss = loss_t
-                    flat_grad = flat_grad_t
-                    self._add_grad(alpha, delta_w)
-                    opt_cond = flat_grad.abs().max() <= tolerance_grad
-                    
-                else:
+                if 1e-20 > alpha_t or alpha_t > 1000000:
                     state['restart'] = 1
-                    break'''
+                    break
+                opt_cond = flat_grad.abs().max() <= tolerance_grad
                 if opt_cond:
                     state['restart'] = 1
                     break
+                alpha = alpha_t
+                self._add_grad(alpha, delta_w)
             else:
                 # no line search, simply move with fixed-step
                 self._add_grad(alpha, delta_w)

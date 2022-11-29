@@ -1,17 +1,7 @@
 import wandb
-import random
 from torch.autograd import Variable
 import torch
-import numpy as np
 from tqdm import tqdm
-import matplotlib.pyplot as plt
-
-# Ensure deterministic behavior
-torch.backends.cudnn.deterministic = True
-random.seed(hash("setting random seeds") % 2**32 - 1)
-np.random.seed(hash("improves reproducibility") % 2**32 - 1)
-torch.manual_seed(hash("by removing stochasticity") % 2**32 - 1)
-torch.cuda.manual_seed_all(hash("so runs are repeatable") % 2**32 - 1)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -23,16 +13,22 @@ print_every = 10
 
 
 def train(num_epochs, cnn, batch_size, optimizer, train_data, test_data, loss_func):
-    torch.set_num_threads(2)
+    num_work = 4
+    if device == "cpu":
+        num_work = 0
     run = wandb.init()
     loaders = {
         'train': torch.utils.data.DataLoader(train_data,
                                              batch_size=batch_size,
-                                             shuffle=True),
+                                             shuffle=True,
+                                             pin_memory=True,
+                                             num_workers=num_work),
 
         'test': torch.utils.data.DataLoader(test_data,
                                             batch_size=batch_size,
-                                            shuffle=True),
+                                            shuffle=True,
+                                            pin_memory=True,
+                                            num_workers=num_work),
     }
     wandb.watch(cnn, loss_func, log="all", log_freq=10)
     running_loss = 0
@@ -41,8 +37,6 @@ def train(num_epochs, cnn, batch_size, optimizer, train_data, test_data, loss_fu
     cnn.train()
 
     # Train the model
-    total_step = len(loaders['train'])
-
     for epoch in range(num_epochs):
         for i, (images, labels) in enumerate(tqdm(loaders['train'])):
             images, labels = images.to(device), labels.to(device)
@@ -79,7 +73,6 @@ def train(num_epochs, cnn, batch_size, optimizer, train_data, test_data, loss_fu
                 test_loss = 0
                 accuracy = 0
                 cnn.eval()
-
                 with torch.no_grad():
                     for inputs, labelss in loaders['test']:
                         inputs, labelss = inputs.to(device), labelss.to(device)
@@ -95,71 +88,14 @@ def train(num_epochs, cnn, batch_size, optimizer, train_data, test_data, loss_fu
                         accuracy += torch.mean(equals.type(torch.FloatTensor)).item()
                 train_losses.append(running_loss / n)
                 test_losses.append(test_loss / m)
-                print(f"Epoch, Steps [{epoch + 1}/{num_epochs}, {i + 1}/{len(loaders['train'])}], .. "
-                      f"Train loss: {running_loss / print_every:.3f}.. "
+                print(f"Epoch, Steps [{epoch + 1}/{num_epochs}, {i + 1}/{n}], .. "
+                      f"Train loss: {running_loss / n:.3f}.. "
                       f"Test loss: {test_loss / m:.3f}.. "
                       f"Test accuracy: {accuracy / m:.3f}")
                 wandb.log({
                     'epoch': epoch,
                     'test_loss': test_loss/m,
                     'test_acc': accuracy/m
-
                 })
-
-
         running_loss = 0
 
-
-
-def train_f(xy_init, n_iter, optimizer, loss_func):
-    """Run optimization finding the minimum of the Rosenbrock function.
-      From https://github.com/jankrepl/mildlyoverfitted/blob/master/mini_tutorials/custom_optimizer_in_pytorch/src.py
-    Parameters
-    ----------
-    xy_init : tuple
-        Two floats representing the x resp. y coordinates.
-    optimizer_class : object
-        Optimizer class.
-    n_iter : int
-        Number of iterations to run the optimization for.
-    optimizer : An torch optimizer.
-    Returns
-    -------
-    path : np.ndarray
-        2D array of shape `(n_iter + 1, 2)`. Where the rows represent the
-        iteration and the columns represent the x resp. y coordinates.
-    """
-
-    path = np.empty((n_iter + 1, 2))
-    path[0, :] = xy_init.cpu().detach().numpy()
-    xy_t = xy_init
-    for i in tqdm(range(1, n_iter + 1)):
-        optimizer.zero_grad()
-        loss = loss_func(xy_t)
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(xy_t, 1.0)
-
-        def closure():
-            if torch.is_grad_enabled():
-                optimizer.zero_grad()
-            loss = loss_func(xy_t)
-            if loss.requires_grad:
-                loss.backward()
-            return loss
-
-        optimizer.step(closure)
-
-        path[i, :] = xy_t.cpu().detach().numpy()
-
-    return path
-
-
-def print_path(path):
-    plt.plot(path[:, 0], path[:, 1], 'ro')
-    plt.plot(path[:, 0], path[:, 1])
-    plt.show()
-
-
-def print_loss(loss, minimum):
-    plt.plot(range(len(loss)), loss - minimum)
-    plt.show()
