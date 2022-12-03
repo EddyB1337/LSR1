@@ -16,17 +16,17 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 traindt, testdt = get_data_mnist()
 
 # Create a model, choose two numbers, its the size of our model
-size = [3, 3]  # small modell
+size = [18, 12]  # small modell
 model = CNN(size).to(device)
 
 # Define loss function
 loss_func = nn.CrossEntropyLoss()
-optimizer_LSR1 = LSR1(model.parameters(), trust_solver="OBS")
+optimizer_LSR1 = LSR1(model.parameters(), trust_solver="OBS", nu=0, mu=0, history_size=3)
 
     # Train
     # print(sweep_id)
     # wandb.watch(model)
-train(10, model, 256, optimizer_LSR1, traindt, testdt, loss_func)
+train(10, model, 128, optimizer_LSR1, traindt, testdt, loss_func)
 '''sweep_configuration = {
     'method': 'random',
     'name': 'sweep',

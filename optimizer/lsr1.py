@@ -517,7 +517,7 @@ class LSR1(torch.optim.Optimizer):
         lamb, U = torch.linalg.eig(RMR)
 
         # create last orthogonal matrix P = QU and return
-        return torch.mm(Q, U.float()), lamb.float()
+        return torch.mm(Q, torch.real(U)), torch.real(lamb)
 
     def update_SY(self, s, y, old_s, old_y, cond_rest):
         """
@@ -736,7 +736,6 @@ class LSR1(torch.optim.Optimizer):
                 # check singular
                 l, _ = torch.linalg.eig(M)
                 if min(torch.abs(l) < 1e-16):  # step 14-17
-                    print("AA")
                     state['restart'] = 1
                     break
 
@@ -831,15 +830,24 @@ class LSR1(torch.optim.Optimizer):
                     def obj_func(x, t, d):
                         return self._directional_evaluate(closure, x, t, d)
 
-                    loss, flat_grad, alpha_t, _ = _strong_wolfe(
+                    loss_t, flat_grad_t, alpha_t, _ = _strong_wolfe(
                         obj_func, x_init, alpha, delta_w, loss, flat_grad, gtd)
 
                 # sometimes the search direction is so bad, that alpha can be zero
                 # or very big. This produces nan in the loss
                 # Avoid this and break
-                if 1e-20 > alpha_t or alpha_t > 1000000:
+                if 1e-12 > alpha_t or alpha_t > 1000000:
                     state['restart'] = 1
                     break
+                check_grad = torch.linalg.norm(flat_grad_t)
+                if check_grad < 1e-12 or check_grad > 1000000:
+                    state['restart'] = 1
+                    break
+                if loss_t > 1000000 or torch.isnan(loss_t):
+                    state['restart'] = 1
+                    break
+                loss = loss_t
+                flat_grad = flat_grad_t
                 opt_cond = flat_grad.abs().max() <= tolerance_grad
                 if opt_cond:
                     state['restart'] = 1
