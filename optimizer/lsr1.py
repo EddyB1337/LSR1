@@ -8,8 +8,8 @@ Original file is located at
 """
 
 import torch
-# import scipy.optimize as sp
 from functools import reduce
+import math
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -843,7 +843,7 @@ class LSR1(torch.optim.Optimizer):
                 if check_grad < 1e-12 or check_grad > 1000000:
                     state['restart'] = 1
                     break
-                if loss_t > 1000000 or torch.isnan(loss_t):
+                if loss_t > 1000000 or math.isnan(loss_t):
                     state['restart'] = 1
                     break
                 loss = loss_t
