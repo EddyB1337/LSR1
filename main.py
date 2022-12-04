@@ -21,7 +21,7 @@ model = CNN(size).to(device)
 
 # Define loss function
 loss_func = nn.CrossEntropyLoss()
-optimizer_LSR1 = LSR1(model.parameters(), trust_solver="OBS", nu=0, mu=0, history_size=3)
+optimizer_LSR1 = LSR1(model.parameters(), trust_solver="Steihaug_cg", nu=0, mu=0, history_size=3)
 
     # Train
     # print(sweep_id)

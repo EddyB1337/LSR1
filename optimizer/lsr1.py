@@ -601,7 +601,7 @@ class LSR1(torch.optim.Optimizer):
           hess_2 (torch.tensor) : P*diag(gamma+lambda)*P^T = hess, hess_2 = P^T
           tr_rho (float) : the trust radius
       """
-        z = torch.zeros(n).to(device)
+        z = torch.zeros(len(flat_grad)).to(device)
         r = flat_grad
         d = -r
         g_norm = torch.linalg.norm(flat_grad)
