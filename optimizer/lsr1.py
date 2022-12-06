@@ -753,7 +753,7 @@ class LSR1(torch.optim.Optimizer):
                 if trust_solver == "Steihaug_cg" or trust_solver is None:
                     delta_w = self.trust_solver_steihaug(flat_grad, L, P, tr_rho)
                 if trust_solver == "OBS":
-                    delta_w = self.trust_solver_OBS(M, M_inverse, torch.transpose(P, 0, 1), lamb + gamma, tr_rho, gamma, flat_grad,
+                    delta_w = self.trust_solver_OBS(M_inverse, torch.transpose(P, 0, 1), lamb + gamma, tr_rho, gamma, flat_grad,
                                                     psi)
             # do some other options: momentum etc.
             v = mu * v - nu * alpha_S * flat_grad + (1 - nu) * s  # step 22
