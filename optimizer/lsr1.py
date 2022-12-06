@@ -461,7 +461,7 @@ class LSR1(torch.optim.Optimizer):
                 p_star = equation_p3(lam_min, tr_rho, p_hat, lam_all, P)
         else:
             if lam_min > 0:
-                sigma_star = newton_method(flat_grad, 0, tr_rho, a, lam_all)
+                sigma_star = newton_method(0, tr_rho, a, lam_all)
             else:
                 sigma_hat = max(torch.abs(a) / tr_rho - lam_all)
                 if sigma_hat > -lam_min:
