@@ -240,7 +240,7 @@ class LSR1(torch.optim.Optimizer):
                  mu=0.75,
                  nu=0.75,
                  alpha_S=0,
-                 newton_maxit=1000,
+                 newton_maxit=5,
                  cg_iter=1000,
                  line_search_fn="strong_wolfe",
                  trust_solver="OBS"):
@@ -340,40 +340,32 @@ class LSR1(torch.optim.Optimizer):
       """
 
         def phi_phi_T(sigma, delta, a, lam):
-            obs_tol = 1e-5
+            obs_tol = 1e-10
             t = lam + sigma
-            if torch.sum(torch.abs(a) < obs_tol) > 0 or torch.sum(torch.abs(t) < obs_tol) > 0:
+            if torch.sum(abs(a) < obs_tol) > 0 or torch.sum(abs(t) < obs_tol) > 0:
                 llpll2 = 0
-                llpll_T = 0
-                idx_a = torch.abs(a) > obs_tol
-                idx_t1 = torch.abs(t) < obs_tol
-                idx_t2 = torch.abs(t) > obs_tol
-                idx_1 = idx_a * idx_t2
-                idx_2 = idx_a * idx_t1
-                if torch.sum(idx_2) > 0:
-                    return -1 / delta, 1 / obs_tol
-                if torch.sum(idx_1):
-                    llpll2 += torch.sum((a[idx_1] / t[idx_1]) ** 2)
-                    llpll_T += torch.sum((a[idx_1] ** 2) / (t[idx_1] ** 3))
+                llpll_prim = 0
+                for i in range(len(a)):
+                    if abs(a[i]) > obs_tol > abs(t[i]):
+                        return -1/tr_rho, 1/obs_tol
+                    elif abs(a[i]) > obs_tol and abs(t[i]) > obs_tol:
+                        llpll2 = llpll2 + (a[i] / t[i])**2
+                        llpll_prim = llpll_prim + (a[i]**2 / t[i]**3)
                 llpll = torch.sqrt(torch.abs(llpll2))
-                return 1 / llpll - 1 / delta, llpll_T / (llpll ** 3)
+                return 1 / llpll - 1 / delta, llpll_prim / (llpll ** 3)
             llpll = torch.linalg.norm(a / t)
             return 1 / llpll - 1 / delta, torch.sum((a ** 2) / (t ** 3)) / (llpll ** 3)
 
         def phi(sigma, delta, a, lam):
-            obs_tol = 1e-15
+            obs_tol = 1e-10
             t = lam + sigma
-            if torch.sum(torch.abs(a) < obs_tol) > 0 or torch.sum(torch.abs(t) < obs_tol) > 0:
+            if torch.sum(abs(a) < obs_tol) > 0 or torch.sum(abs(t) < obs_tol) > 0:
                 llpll2 = 0
-                idx_a = torch.abs(a) > obs_tol
-                idx_t1 = torch.abs(t) < obs_tol
-                idx_t2 = torch.abs(t) > obs_tol
-                idx_1 = idx_a * idx_t2
-                idx_2 = idx_a * idx_t1
-                if torch.sum(idx_2) > 0:
-                    return -1 / delta
-                if torch.sum(idx_1):
-                    llpll2 += torch.sum((a[idx_1] / t[idx_1]) ** 2)
+                for i in range(len(a)):
+                    if abs(a[i]) > obs_tol > abs(t[i]):
+                        return -1 / tr_rho
+                    elif abs(a[i]) > obs_tol and abs(t[i]) > obs_tol:
+                        llpll2 = llpll2 + (a[i] / t[i]) ** 2
                 return 1 / torch.sqrt(llpll2) - 1 / delta
             llpll = torch.linalg.norm(a / t)
             return 1 / llpll - 1 / delta
@@ -753,7 +745,8 @@ class LSR1(torch.optim.Optimizer):
                 if trust_solver == "Steihaug_cg" or trust_solver is None:
                     delta_w = self.trust_solver_steihaug(flat_grad, L, P, tr_rho)
                 if trust_solver == "OBS":
-                    delta_w = self.trust_solver_OBS(M_inverse, torch.transpose(P, 0, 1), lamb + gamma, tr_rho, gamma, flat_grad,
+                    delta_w = self.trust_solver_OBS(M_inverse, torch.transpose(P, 0, 1), lamb + gamma, tr_rho, gamma,
+                                                    flat_grad,
                                                     psi)
             # do some other options: momentum etc.
             v = mu * v - nu * alpha_S * flat_grad + (1 - nu) * s  # step 22
