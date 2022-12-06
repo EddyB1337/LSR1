@@ -322,7 +322,7 @@ class LSR1(torch.optim.Optimizer):
         self._set_param(x)
         return loss, flat_grad
 
-    def trust_solver_OBS(self, M, P, lamb_gamma, tr_rho, gamma, flat_grad, psi):
+    def trust_solver_OBS(self, M_inv, P, lamb_gamma, tr_rho, gamma, flat_grad, psi):
         """
       .. The function solve a trust region subproblem with the Orthonomal Basis method.
          This was copied from https://github.com/MATHinDL/sL_QN_TR.
@@ -423,7 +423,7 @@ class LSR1(torch.optim.Optimizer):
                 z_star = alpha * u_min
             return p_hat + z_star
 
-        def newton_method(flat_grad, sigma, tr_rho, a, lam_all):
+        def newton_method(sigma, tr_rho, a, lam_all):
             newton_tol = 1e-15
             k = 0
             s = sigma
@@ -438,7 +438,7 @@ class LSR1(torch.optim.Optimizer):
         lam_all[-1] = gamma
         lam_all[:-1] = lamb_gamma
         lam_all = lam_all * (torch.abs(lam_all) > 1e-10)
-        lam_min = min(lam_all[-2], gamma)
+        lam_min = torch.min(lam_all)
         g_ll = torch.matmul(torch.transpose(P, 0, 1), flat_grad)
         gg = torch.matmul(flat_grad, flat_grad)
         gl_gl = torch.matmul(g_ll, g_ll)
@@ -451,7 +451,7 @@ class LSR1(torch.optim.Optimizer):
         if phi(0, tr_rho, a, lam_all) >= 0 and lam_min > 0:
             sigma_star = 0
             tau_star = gamma + sigma_star
-            p_star = equation_p1(psi, M, tau_star, flat_grad)
+            p_star = equation_p1(psi, M_inv, tau_star, flat_grad)
             return p_star
         if lam_min <= 0 <= phi(-lam_min, tr_rho, a, lam_all):
             sigma_star = -lam_min
@@ -465,11 +465,11 @@ class LSR1(torch.optim.Optimizer):
             else:
                 sigma_hat = max(torch.abs(a) / tr_rho - lam_all)
                 if sigma_hat > -lam_min:
-                    sigma_star = newton_method(flat_grad, sigma_hat, tr_rho, a, lam_all)
+                    sigma_star = newton_method(sigma_hat, tr_rho, a, lam_all)
                 else:
-                    sigma_star = newton_method(flat_grad, -lam_min, tr_rho, a, lam_all)
+                    sigma_star = newton_method(-lam_min, tr_rho, a, lam_all)
             tau_star = sigma_star + gamma
-            p_star = equation_p1(psi, M, tau_star, flat_grad)
+            p_star = equation_p1(psi, M_inv, tau_star, flat_grad)
         return p_star
 
     def calculate_M(self, S, Y, gamma):
@@ -753,7 +753,7 @@ class LSR1(torch.optim.Optimizer):
                 if trust_solver == "Steihaug_cg" or trust_solver is None:
                     delta_w = self.trust_solver_steihaug(flat_grad, L, P, tr_rho)
                 if trust_solver == "OBS":
-                    delta_w = self.trust_solver_OBS(M, torch.transpose(P, 0, 1), lamb + gamma, tr_rho, gamma, flat_grad,
+                    delta_w = self.trust_solver_OBS(M, M_inverse, torch.transpose(P, 0, 1), lamb + gamma, tr_rho, gamma, flat_grad,
                                                     psi)
             # do some other options: momentum etc.
             v = mu * v - nu * alpha_S * flat_grad + (1 - nu) * s  # step 22
