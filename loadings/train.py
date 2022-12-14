@@ -13,9 +13,9 @@ print_every = 10
 
 def train(num_epochs, cnn, batch_size, optimizer, train_data, test_data, loss_func):
     num_work = 4
-    if torch.cuda.is_available() == False:
+    if not torch.cuda.is_available():
         num_work = 0
-    run = wandb.init()
+    wandb.init()
     loaders = {
         'train': torch.utils.data.DataLoader(train_data,
                                              batch_size=batch_size,
@@ -34,6 +34,7 @@ def train(num_epochs, cnn, batch_size, optimizer, train_data, test_data, loss_fu
     n = len(loaders['train'])
     m = len(loaders['test'])
     cnn.train()
+    acc_list = []
 
     # Train the model
     for epoch in range(num_epochs):
@@ -115,6 +116,7 @@ def train(num_epochs, cnn, batch_size, optimizer, train_data, test_data, loss_fu
                 accuracy += torch.mean(equals.type(torch.FloatTensor)).item()
         train_losses.append(running_loss / n)
         test_losses.append(test_loss / m)
+        acc_list.append(accuracy/m)
         print(f"Epoch, Steps [{epoch + 1}/{num_epochs}, {i + 1}/{n}], .. "
               f"Train loss: {running_loss / n:.3f}.. "
               f"Test loss: {test_loss / m:.3f}.. "
@@ -124,4 +126,5 @@ def train(num_epochs, cnn, batch_size, optimizer, train_data, test_data, loss_fu
             'test_loss': test_loss / m,
             'test_acc': accuracy / m
         })
-    running_loss = 0
+        running_loss = 0
+    return acc_list
