@@ -731,7 +731,7 @@ class LSR1(torch.optim.Optimizer):
 
                 # check singular
                 l, _ = torch.linalg.eig(M)
-                if min(torch.abs(l) < 1e-16):  # step 14-17
+                if min(abs(l)) < 1e-16:  # step 14-17
                     state['restart'] = 1
                     break
 
@@ -880,6 +880,7 @@ class LSR1(torch.optim.Optimizer):
             # From torch.optim.LBFGS
             if abs(ared) < tolerance_change:  # step 42-45
                 state['restart'] = 1
+                print("A")
                 break
             pred = loss + torch.matmul(flat_grad, delta_w) + 0.5 * dHd  # step 46
             r = ared / pred  # step 47
