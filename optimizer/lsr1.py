@@ -722,7 +722,10 @@ class LSR1(torch.optim.Optimizer):
                 # from Oleg Burdakov, Yu-Hong Dai, Na Huang
                 g_1 = torch.matmul(old_s[-1], old_y[-1]) / (torch.matmul(old_y[-1], old_y[-1]))
                 g_2 = torch.matmul(old_s[-1], old_s[-1]) / (torch.matmul(old_s[-1], old_y[-1]))
-                gamma = max(g_1, g_2)  # step 12
+                if abs(g_1) > abs(g_2):
+                    gamma = g_1
+                else:
+                    gamma = g_2  # step 12
                 # calculate M and psi
                 M, psi = self.calculate_M(S, Y, gamma)  # step 13
 
