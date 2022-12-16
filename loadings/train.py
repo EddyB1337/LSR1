@@ -1,4 +1,4 @@
-import wandb
+#import wandb
 from torch.autograd import Variable
 import torch
 from tqdm import tqdm
@@ -15,7 +15,7 @@ def train(num_epochs, cnn, batch_size, optimizer, train_data, test_data, loss_fu
     num_work = 4
     if not torch.cuda.is_available():
         num_work = 0
-    wandb.init()
+    #wandb.init()
     loaders = {
         'train': torch.utils.data.DataLoader(train_data,
                                              batch_size=batch_size,
@@ -29,7 +29,7 @@ def train(num_epochs, cnn, batch_size, optimizer, train_data, test_data, loss_fu
                                             pin_memory=True,
                                             num_workers=num_work),
     }
-    wandb.watch(cnn, loss_func, log="all", log_freq=10)
+    #wandb.watch(cnn, loss_func, log="all", log_freq=10)
     running_loss = 0
     n = len(loaders['train'])
     m = len(loaders['test'])
@@ -65,10 +65,10 @@ def train(num_epochs, cnn, batch_size, optimizer, train_data, test_data, loss_fu
             optimizer.step(closure=closure)
             running_loss += loss.item()
             optimizer.zero_grad()
-            wandb.log({
-                'epoch': epoch,
-                'train_loss': running_loss / (i + 1),
-            })
+            #wandb.log({
+            #    'epoch': epoch,
+            #    'train_loss': running_loss / (i + 1),
+            #})
             '''if (i + 1) % 10 == 0:
                 test_loss = 0
                 accuracy = 0
@@ -121,10 +121,10 @@ def train(num_epochs, cnn, batch_size, optimizer, train_data, test_data, loss_fu
               f"Train loss: {running_loss / n:.3f}.. "
               f"Test loss: {test_loss / m:.3f}.. "
               f"Test accuracy: {accuracy / m:.3f}")
-        wandb.log({
-            'epoch': epoch,
-            'test_loss': test_loss / m,
-            'test_acc': accuracy / m
-        })
+        #wandb.log({
+        #    'epoch': epoch,
+        #    'test_loss': test_loss / m,
+        #    'test_acc': accuracy / m
+        #})
         running_loss = 0
     return acc_list
