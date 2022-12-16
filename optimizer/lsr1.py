@@ -722,10 +722,7 @@ class LSR1(torch.optim.Optimizer):
                 # from Oleg Burdakov, Yu-Hong Dai, Na Huang
                 g_1 = torch.matmul(old_s[-1], old_y[-1]) / (torch.matmul(old_y[-1], old_y[-1]))
                 g_2 = torch.matmul(old_s[-1], old_s[-1]) / (torch.matmul(old_s[-1], old_y[-1]))
-                if abs(g_1) < abs(g_2):
-                    gamma = g_1
-                else:
-                    gamma = g_2  # step 12
+                gamma = max(max(g_1, g_2), 1)
                 # calculate M and psi
                 M, psi = self.calculate_M(S, Y, gamma)  # step 13
 
@@ -878,10 +875,10 @@ class LSR1(torch.optim.Optimizer):
             #############################################################  
             ared = prev_loss - loss  # step 41
             # From torch.optim.LBFGS
-            if abs(ared) < tolerance_change:  # step 42-45
-                state['restart'] = 1
-                print("A")
-                break
+            #if abs(ared) < tolerance_change:  # step 42-45
+            #    state['restart'] = 1
+            #    print("A")
+            #    break
             pred = loss + torch.matmul(flat_grad, delta_w) + 0.5 * dHd  # step 46
             r = ared / pred  # step 47
 
