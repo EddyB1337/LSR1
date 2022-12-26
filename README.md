@@ -33,6 +33,16 @@ torchvision. We use the library tqdm for aesthetic reasons
 to present a loading bar for the state of the epoch. 
 
 ## Setup
+It is highly recommended to run the algorithm through 
+Google Colab, we have created a corresponding notebook. 
+This can be opened via the following link:
+
+[Link to Notebook File](https://colab.research.google.com/drive/1yeEtvwcSainTdwEYk-4eus8si9TbCxIe?usp=sharing).
+
+If Google Colab is not desired and this is to be run 
+locally some steps are necessary. 
+First, the entire project should be downloaded using git.
+
 
 ## Install all requirements
 
