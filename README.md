@@ -3,7 +3,7 @@
 ## Table of contents
 * [General info](#general-info)
 * [Technologies](#technologies)
-* [Setup](#setup)
+* [Setup with Google Colab](#setup)
 
 ## General info
 This project includes the Limited Symmetric Rank 1 
@@ -32,7 +32,7 @@ The MNIST data can be easily downloaded and used through
 torchvision. We use the library tqdm for aesthetic reasons 
 to present a loading bar for the state of the epoch. 
 
-## Setup
+## Setup with Google Colab
 It is highly recommended to run the algorithm through 
 Google Colab, we have created a corresponding notebook. 
 This can be opened via the following link:
