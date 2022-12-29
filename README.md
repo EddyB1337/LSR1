@@ -14,8 +14,17 @@
   * [Technical Functions](#technical-functions)
   * [Wolfe Conditions](#wolfe-conditions)
 * [Functions from me](#functions-from-me)
+  * [Calculate M Function](#calculate-m-function)
+  * [Calculate Hessian Function](#calculate-hessian-function)
+  * [Update S and Y Function](#update-s-and-y-function)
+  * [Update Radius Function](#update-radius-function)
+  * [Orthonormal Basis SR1 Solver Function](#orthonormal-basis-sr1-solver-function)
+  * [Cauchy Point Calculation Solver Function](#cauchy-point-calculation-solver-function)
+  * [Steihaug Conjugated Gradient Solver Function](#steihaug-conjugated-gradient-solver-function)
+  * [Step Function](#step-function)
 * [Deep Learning Model (CNN)](#deep-learning-model-cnn)
 * [Hyper-parameters](#hyper-parameters)
+* [Potential problems](#potential-problems)
 * [Sources](#sources)
 
 ## General info
@@ -243,6 +252,22 @@ main.py file. Of course, the user can create another model.
 The type of model is independent of the optimizer.
 
 ## Hyper-parameters
+* Learning rate: lr
+* Max Iteration of the LSR1-TR Algorithm per Epoch: max_iter
+* Break condition for the gradient: tolerance_grad
+* Break condition of the actual reduction: tolerance_change
+* Initial trust region radius: tr_radius
+* Number of Columns of the LSR1 Matrix: memory_size
+* Momentum term: mu
+* Momentum term: nu
+* Momentum term: alpha_S
+* Max iteration of the Newton method: newton_maxit
+* Max Iteration of the Steihaug Conjugated Gradient Method: cg_iter
+* Option for a line search: line_search_fn
+* The type of the trust region solver: trust_solver
+
+## Potential problems
+
 
 ## Sources
 
