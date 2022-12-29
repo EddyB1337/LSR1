@@ -11,6 +11,8 @@
   * [Start the Code](#start-the-code)
   * [Output](#output)
 * [Functions from torch](#functions-from-torch)
+  * [Technical Functions](#technical-functions)
+  * [Wolfe Conditions](#wolfe-conditions)
 * [Functions from me](#functions-from-me)
 * [Deep Learning Model (CNN)](#deep-learning-model-cnn)
 * [Hyper-parameters](#hyper-parameters)
@@ -126,6 +128,7 @@ The code is best started like this.
 python3 main.py
 ```
 With a favorite editor you can change the settings 
+(hyperparameters and the size of the model) 
 in the main.py with which you want to start the code. 
 By default nano or vim is installed.
 ```
@@ -157,12 +160,87 @@ we have taken over from torch.optim.LBFGS with a comment.
 
 ### Technical Functions
 
+* def _numel(self):
+* def _gather_flat_grad(self):
+* def _add_grad(self, step_size, update):
+* def _clone_param(self):
+* def _set_param(self, params_data):
+* def _directional_evaluate(self, closure, x, t, d):
+
+These functions enable more technical tasks and did not 
+play a significant part in the implementation.
+
 ### Wolfe Conditions
 
+* def _cubic_interpolate(x1, f1, g1, x2, f2, g2, bounds=None):
+* def _strong_wolfe(obj_func,
+                  x,
+                  t,
+                  d,
+                  f,
+                  g,
+                  gtd,
+                  c1=1e-4,
+                  c2=0.9,
+                  tolerance_change=1e-9,
+                  max_ls=25):
+
+These two functions performed an essential task in 
+determining the learning rate. We have generously 
+adopted them and would like to express our sincere 
+thanks to the torch.optim.LBFGS creator.
 
 ## Functions from me
 
+* def calculate_M(self, S, Y, gamma):
+* def calculate_hess(self, Psi, M_inverse):
+* def update_SY(self, s, y, old_s, old_y, cond_rest):
+* def update_radius(self, r, trust_radius, s, T, rho):
+* def trust_solver_OBS(self, M, P, lamb_gamma, trust_radius, gamma, flat_grad, psi):
+* def trust_solver_cauchy(self, flat_grad, hess_1, hess_2, trust_radius):
+* def trust_solver_steihaug(self, flat_grad, hess_1, hess_2, trust_radius):
+* def step(self, closure):
+
+### Calculate M Function
+This function calculates the middle part without 
+the inverse of the limited memory variant of the 
+LSR1 matrix. Here S and Y are matrices whose columns 
+represent the last m vectors s and y and gamma is the 
+real value of the initial matrix B_0.
+
+More detailed information can be found in the following source:
+Richard, H., Byrd, & Jorge, Nocedal, & Robert, B., Schnabel. (1994). Representations of
+quasi-Newton matrices and their use in limited memory methods, 147-149
+Available from
+
+https://link.springer.com/article/10.1007/BF01582063
+
+### Calculate Hessian Function
+
+### Update S and Y Function
+
+### Update Radius Function
+
+### Orthonormal Basis SR1 Solver Function
+
+### Cauchy Point Calculation Solver Function
+
+### Steihaug Conjugated Gradient Solver Function
+
+### Step Function
+
 ## Deep Learning Model (CNN)
+We have taken the CNN model from the following source.
+
+https://medium.com/@nutanbhogendrasharma/pytorch-convolutional-neural-network-with-mnist-dataset-4e8a4265e118
+
+This model consists of an input layer, a hidden layer 
+and an end layer. We have changed the code so that the 
+size of the dimensions of the individual layers can be 
+passed as parameters. The user of the code has the 
+possibility to change the size of the model in the 
+main.py file. Of course, the user can create another model. 
+The type of model is independent of the optimizer.
 
 ## Hyper-parameters
 

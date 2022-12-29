@@ -12,10 +12,10 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 traindt, testdt = get_data_mnist()
 
 # Create a model, choose two numbers, the size of our model
-size = [18, 16]
+size = [18, 16] ## you can change the numbers
 model = CNN(size).to(device)
 
-#Define hyperparameters
+#Define hyperparameters, you can chnage the hyperparameters
 tr_radius = 0.00075
 memory_size = 3
 mu = 0.75
@@ -26,7 +26,7 @@ trust_solver = "OBS"                    #either 'OBS' or 'Cauchy_Point_Calculati
 epochs = 10
 batch_size = 256
 
-# Define loss function
+# Define loss function, you can use another loss function, look in the torch website
 loss_func = nn.CrossEntropyLoss()
 
 #Define optimizer
