@@ -3,7 +3,13 @@
 ## Table of contents
 * [General info](#general-info)
 * [Technologies](#technologies)
-* [Setup with Google Colab](#setup)
+* [Setup with Google Colab](#setup-with-google-colab)
+* [Setup via Terminal](#setup-via-terminal)
+* [Functions from torch](#functions-from-torch)
+* [Functions from me](#functions-from-me)
+* [Deep Learning Model (CNN)](#deep-learning-model-cnn)
+* [Hyper-parameters](#hyper-parameters)
+* [Sources](#sources)
 
 ## General info
 This project includes the Limited Symmetric Rank 1 
@@ -25,6 +31,7 @@ Project is created with:
 * torchvision version : 0.14.0
 * tqdm version : 4.64.1
 
+
 The library torch is generally used for Deep Learning models,
 therefore it is obvious to implement all functions in torch. 
 Torch also provides interfaces for the use of a GPU by cuda. 
@@ -41,21 +48,57 @@ This can be opened via the following link:
 
 If Google Colab is not desired and this is to be run 
 locally some steps are necessary. 
-First, the entire project should be downloaded using git.
 
+## Setup via Terminal
 
-## Install all requirements
+### Clone project
+First, the project must be downloaded locally. 
+To do this, we create a new folder via the terminal 
+and also change to the path of the new folder. 
+Open the terminal in your system and enter the 
+following commands separately.
+```
+mkdir LSR1
+cd LSR1
+```
+Clone the project using git.
+```
+git clone https://github.com/EddyB1337/LSR1.git
+```
+This ensures that you have the project locally on 
+your computer. We still need to enter the folder path 
+of the project.
+```
+cd LSR1
+```
 
-```bash
+### Setup with Linux
+Make sure you have python 3 installed. 
+Use the following command to install the latest 
+version of Python in a Linux system.
+```
+sudo apt-get install python3
+```
+Install the latest version of pip.
+```
+sudo apt install python3-pip
+```
+Finally, install all the necessary libraries 
+using the requirements.txt file.
+```
 pip install -r requirements.txt
 ```
 
-## Settings
-You can set the hyperparametrs and loss function 
-in main.py. 
 
-## Start main.py
-```bash
-python3 main.py
-```
+## Functions from torch
+
+## Functions from me
+
+## Deep Learning Model (CNN)
+
+## Hyper-parameters
+
+## Sources
+
+
 
