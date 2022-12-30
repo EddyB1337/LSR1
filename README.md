@@ -23,9 +23,9 @@
   * [Steihaug Conjugated Gradient Solver Function](#steihaug-conjugated-gradient-solver-function)
   * [Step Function](#step-function)
 * [Deep Learning Model (CNN)](#deep-learning-model-cnn)
+* [Loss Function](#loss-function)
 * [Hyper-parameters](#hyper-parameters)
 * [Potential problems](#potential-problems)
-* [Sources](#sources)
 
 ## General info
 This project includes the Limited Symmetric Rank 1 
@@ -61,6 +61,13 @@ Google Colab, we have created a corresponding notebook.
 This can be opened via the following link:
 
 [Link to Notebook File](https://colab.research.google.com/drive/1yeEtvwcSainTdwEYk-4eus8si9TbCxIe?usp=sharing).
+
+The runtime should be changed to a GPU. Go to 
+Runtime->Change runtime type 
+and then select GPU to Hardware accelerator. 
+If the file is in German, then 
+Laufzeit->Laufzeittyp ändern
+and then select GPU on Hardwarebeschleuniger.
 
 If Google Colab is not desired and this is to be run 
 locally some steps are necessary. 
@@ -200,6 +207,18 @@ adopted them and would like to express our sincere
 thanks to the torch.optim.LBFGS creator.
 
 ## Functions from me
+To understand these functions, the following sources should be consulted:
+* Jorge, Nocedal, & Stephen, J., Wright. (2006). Numerical Optimization. 71-73, 146
+* Joshua, D., Griffin, & Majid, Jahani, & Martin, Takáč, & Seyedalireza, Yektamaram, &
+Wenwen Zhou. (2022). A minibatch stochastic Quasi-Newton method adapted for nonconvex
+deep learning problems
+* Richard, H., Byrd, & Jorge, Nocedal, & Robert, B., Schnabel. (1994). Representations of
+quasi-Newton matrices and their use in limited memory methods, 147-149
+* Oleg, Burdakov, & Yu-Hong, Dai, & Na, Huang. (2019). Stabilizied Barzilai-Borwein
+* Johannes, Brust, & Jennifer, B., Erway, & Roummel, F., Marcia. (2016). On solving L-SR1
+Trust-Region Subproblems
+
+The following enumerations are functions we have written.
 
 * def calculate_M(self, S, Y, gamma):
 * def calculate_hess(self, Psi, M_inverse):
@@ -209,6 +228,8 @@ thanks to the torch.optim.LBFGS creator.
 * def trust_solver_cauchy(self, flat_grad, hess_1, hess_2, trust_radius):
 * def trust_solver_steihaug(self, flat_grad, hess_1, hess_2, trust_radius):
 * def step(self, closure):
+
+We discuss the functions in the appropriate order:
 
 ### Calculate M Function
 This function calculates the middle part without 
@@ -227,6 +248,13 @@ https://link.springer.com/article/10.1007/BF01582063
 ### Calculate Hessian Function
 
 ### Update S and Y Function
+This function updates the lists of the last m 
+(memory size) vectors s and y. 
+We have named these lists old_s and old_y. 
+First, we check if the LSR1 update is well-defined, and 
+if it is, we insert the current vectors s and y. 
+If the memory size is already reached, we remove 
+the first vector from both lists.
 
 ### Update Radius Function
 
@@ -251,6 +279,21 @@ possibility to change the size of the model in the
 main.py file. Of course, the user can create another model. 
 The type of model is independent of the optimizer.
 
+## Loss Function
+We chose the cross-entropy loss function because it 
+is very suitable for classifying objects into a fixed 
+number of groups. 
+It is also twice continuously differentiable, which 
+is very important for our algorithm. 
+A list of the possible loss functions offered 
+by torch can be found at the following link.
+
+https://pytorch.org/docs/stable/nn.html#loss-functions
+
+It is essential that a second derivative exists, since 
+our algorithm approximates the search direction using 
+the second derivative.
+
 ## Hyper-parameters
 * Learning rate: lr
 * Max Iteration of the LSR1-TR Algorithm per Epoch: max_iter
@@ -266,10 +309,31 @@ The type of model is independent of the optimizer.
 * Option for a line search: line_search_fn
 * The type of the trust region solver: trust_solver
 
+The corresponding default values can be looked up in the function body.
+
 ## Potential problems
+It may be that the system you are working on is 
+somewhat older and cannot install or use the 
+necessary dependencies of torch. 
+This can be recognized by the following error message.
+```
+Segmentation fault (core dumped)
+```
+The solution is to install torch from source, 
+for this you enter the following commands separately.
+```
+git clone --recursive https://github.com/pytorch/pytorch
+pip install .
+```
+Here you should note that the versions of torch and 
+torchvision are not the latest. 
+This can lead to conflicts, also with other libraries. 
+Further error handling is made more difficult here. 
+In most cases the libraries have to be downgraded. 
+One library that caused problems was Pillow, which 
+we accordingly downgraded to 8.1.1 in this situation. 
+However, this can also affect any other library individually.
 
-
-## Sources
 
 
 
