@@ -358,12 +358,40 @@ We have taken some settings from the following source https://d-nb.info/12198529
 
 Furthermore, we determined the steps by finding a tau 
 by solving a quadratic equation.
+
 ### Step Function
 The step function is the main function where the 
 whole LSR1-TR algorithm is implemented. We would like 
 to refer to the comments in the Python code and will 
-briefly discuss only some details. 
+briefly discuss only some details.
 
+The gamma can be determined by two possibilities:  
+Oleg, Burdakov, & Yu-Hong, Dai, & Na, Huang. (2019). Stabilizied Barzilai-Borwein
+Method Available from https://arxiv.org/abs/1907.06409.
+Finally, we determine the gamma as the maximum of the two variants at 0.1, i.e.
+```
+gamma = max(0.1, max(g_1, g_2))
+```
+
+The learning rate can generate NaN values in the loss 
+through the Line Search. This happens when the resulting 
+learning rate becomes very large or too close to zero. 
+We catch this very unconventionally. We do similar 
+checks with the loss and the gradient.
+```
+if 1e-12 > alpha_t or alpha_t > 1000000:
+    state['restart'] = 1
+    break
+check_grad = torch.linalg.norm(flat_grad_t)
+if check_grad < 1e-12 or check_grad > 1000000:
+    state['restart'] = 1
+    break
+if loss_t > 1000000 or math.isnan(loss_t):
+    state['restart'] = 1
+    break
+```
+We are grateful for any improvement or solution 
+to this problem that is communicated to us.
 
 ## Deep Learning Model (CNN)
 We have taken the CNN model from the following source.
