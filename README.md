@@ -334,10 +334,38 @@ basis solver, whose implementation can be looked up
 in the source mentioned above.
 
 ### Cauchy Point Calculation Solver Function
+This function solves a trust region subproblem with 
+the Cauchy Point Calculation. We have taken the 
+implementation from the following source.
+
+Jorge, Nocedal, & Stephen, J., Wright. (2006). Numerical Optimization. Springer Sci-
+ence+Business Media, LLC, 71-73
+Available from 
+
+https://www.csie.ntu.edu.tw/~r97002/temp/num_optimization.pdf
 
 ### Steihaug Conjugated Gradient Solver Function
+This function solves a trust region subproblem with 
+the Steihaugs Conjugated Gradient method. We have taken the 
+implementation from the following source.
 
+Jorge, Nocedal, & Stephen, J., Wright. (2006). Numerical Optimization. Springer Sci-
+ence+Business Media, LLC, 165-172
+
+Available from https://www.csie.ntu.edu.tw/~r97002/temp/num_optimization.pdf
+
+We have taken some settings from the following source.
+
+https://d-nb.info/1219852988/34
+
+Furthermore, we determined the steps by finding a tau 
+by solving a quadratic equation.
 ### Step Function
+The step function is the main function where the 
+whole LSR1-TR algorithm is implemented. We would like 
+to refer to the comments in the Python code and will 
+briefly discuss only some details. 
+
 
 ## Deep Learning Model (CNN)
 We have taken the CNN model from the following source.
