@@ -25,6 +25,12 @@
 * [Deep Learning Model (CNN)](#deep-learning-model-cnn)
 * [Loss Function](#loss-function)
 * [Hyper-parameters](#hyper-parameters)
+  * [lr and line_search_fn](#lr-and-line_search_fn)
+  * [mu, nu and alpha_S](#mu-nu-and-alpha_s)
+  * [trust_solver, newton_maxit and cg_iter](#trust_solver-newton_maxit-and-cg_iter)
+  * [memory size](#memory-size)
+  * [tr_radius](#tr_radius)
+  * [tolerance_change and tolerance_grad](#tolerance_change-and-tolerance_grad)
 * [Potential problems](#potential-problems)
 
 ## General info
@@ -110,7 +116,7 @@ Install the latest version of pip.
 ```
 sudo apt install python3-pip
 ```
-Finally, install all the necessary libraries 
+Finally, install all necessary libraries 
 using the requirements.txt file.
 ```
 pip install -r requirements.txt
@@ -132,7 +138,7 @@ Now we can install pip as follows
 curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 python3 get-pip.py
 ```
-Finally, install all the necessary libraries 
+Finally, install all necessary libraries 
 using the requirements.txt file.
 ```
 pip install -r requirements.txt
@@ -143,7 +149,7 @@ The code is best started like this.
 ```
 python3 main.py
 ```
-With a favorite editor you can change the settings 
+With favorite editor you can change the settings 
 (hyperparameters and the size of the model) 
 in the main.py with which you want to start the code. 
 By default nano or vim is installed.
@@ -152,8 +158,7 @@ nano main.py
 vim main.py
 ```
 Of course it is also recommended to open and edit 
-everything via an IDE like spyder, pycharm or similar. 
-But we leave this to the user.
+everything via an IDE like spyder, pycharm or similar.
 
 ### Output
 First, the MNIST dataset is downloaded. 
@@ -218,7 +223,7 @@ quasi-Newton matrices and their use in limited memory methods, 147-149
 * Johannes, Brust, & Jennifer, B., Erway, & Roummel, F., Marcia. (2016). On solving L-SR1
 Trust-Region Subproblems
 
-The following enumerations are functions we have written.
+The following bullet points are functions that we have written.
 
 * def calculate_M(self, S, Y, gamma):
 * def calculate_hess(self, Psi, M_inverse):
