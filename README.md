@@ -246,6 +246,22 @@ Available from
 https://link.springer.com/article/10.1007/BF01582063
 
 ### Calculate Hessian Function
+This function returns an orthogonal matrix P and a 
+square diagonal matrix. To begin, we compute a reduced 
+QR decomposition of Psi = Y - gamma * S. We take Psi 
+from the previous function where we compute M. 
+From the R of the QR decomposition, we compute a 
+spectral decomposition of R@M^{-1}@R^T = U@L@U^T, where 
+M^{-1} is the inverse of M. P=Q@U and L is returned. 
+Note that because of the torch function, an imaginary 
+part of 0 is always added, so we take only the real part.
+
+More detailed information can be found in the following source:
+Johannes, Brust, & Jennifer, B., Erway, & Roummel, F., Marcia. (2016). On solving L-SR1
+Trust-Region Subproblems 
+Available from 
+
+https://arxiv.org/abs/1506.07222
 
 ### Update S and Y Function
 This function updates the lists of the last m 
@@ -257,8 +273,65 @@ If the memory size is already reached, we remove
 the first vector from both lists.
 
 ### Update Radius Function
+This function updates the Trust Region Radius. 
+We have taken the function from the following source.
+
+Joshua, D., Griffin, & Majid, Jahani, & Martin, Takáč, & Seyedalireza, Yektamaram, &
+Wenwen Zhou. (2022). A minibatch stochastic Quasi-Newton method adapted for nonconvex
+deep learning problems
+Available from 
+
+https://optimization-online.org/2022/01/8760/
+
+We have made a correction in the first if condition:
+```
+if rho < 0.5:
+```
+Furthermore, we have changed the first line:
+```
+rho = 0.5 * T * rho - r
+```
 
 ### Orthonormal Basis SR1 Solver Function
+We have taken the implementation of the function from 
+the following source.
+
+https://github.com/MATHinDL/sL_QN_TR
+
+Keep in mind that we have converted Matlab code to Python Code.
+This function solves a trust region subproblem using the 
+LSR1 matrix. For a detailed description of this function, 
+the following source is helpful.
+
+Johannes, Brust, & Jennifer, 
+B., Erway, & Roummel, F., Marcia. (2016). 
+On solving L-SR1 Trust-Region Subproblems 
+Available from
+
+https://arxiv.org/abs/1506.07222
+
+This solver has six sub-functions. The first two subfunctions 
+are the evaluation of the function phi and its derivative 
+according to the optimal sigma. 
+
+The equation_p1 function calculates the optimal step using 
+the Sherman Morrison Woodbury formula.  
+
+The equation_p2 function calculates the optimal step using 
+the Moore Penrose pseudoinverse matrix.
+
+The equation_p3 function computes the optimal step using 
+the Moore-Penrose pseudoinverse matrix and the unit 
+vector from the eigenspace from the minimum eigenvalue 
+from the extended eigenvalue vector.
+
+The last function newton_method searches for the zero point
+of the function phi using Newton's method and returns the
+zero point as sigma.
+
+The main part of this function represents the orthonormal 
+basis solver, whose implementation can be looked up 
+in the source mentioned above.
 
 ### Cauchy Point Calculation Solver Function
 

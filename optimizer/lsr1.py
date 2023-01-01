@@ -568,7 +568,7 @@ class LSR1(torch.optim.Optimizer):
         # thin q-r factorisation of phi
         Q, R = torch.linalg.qr(Psi, mode="reduced")
 
-        # eigenvalues and eigenvectors of RM^{-1}R^T
+        # eigenvalues and eigenvectors of R@M^{-1}@R^T
         RMR = torch.mm(torch.mm(R, M_inverse), torch.transpose(R, 0, 1))
         RMR = (RMR + torch.transpose(RMR, 0, 1)) / 2
         lamb, U = torch.linalg.eig(RMR)
