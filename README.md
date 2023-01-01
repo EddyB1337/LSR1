@@ -338,8 +338,8 @@ This function solves a trust region subproblem with
 the Cauchy Point Calculation. We have taken the 
 implementation from the following source.
 
-Jorge, Nocedal, & Stephen, J., Wright. (2006). Numerical Optimization. Springer Sci-
-ence+Business Media, LLC, 71-73
+Jorge, Nocedal, & Stephen, J., Wright. (2006). Numerical Optimization. 
+Springer Science+Business Media, LLC, 71-73
 Available from 
 
 https://www.csie.ntu.edu.tw/~r97002/temp/num_optimization.pdf
@@ -349,14 +349,12 @@ This function solves a trust region subproblem with
 the Steihaugs Conjugated Gradient method. We have taken the 
 implementation from the following source.
 
-Jorge, Nocedal, & Stephen, J., Wright. (2006). Numerical Optimization. Springer Sci-
-ence+Business Media, LLC, 165-172
+Jorge, Nocedal, & Stephen, J., Wright. (2006). Numerical Optimization. 
+Springer Science+Business Media, LLC, 165-172
 
-Available from https://www.csie.ntu.edu.tw/~r97002/temp/num_optimization.pdf
+Available from https://www.csie.ntu.edu.tw/~r97002/temp/num_optimization.pdf.
 
-We have taken some settings from the following source.
-
-https://d-nb.info/1219852988/34
+We have taken some settings from the following source https://d-nb.info/1219852988/34.
 
 Furthermore, we determined the steps by finding a tau 
 by solving a quadratic equation.
@@ -411,6 +409,59 @@ the second derivative.
 * The type of the trust region solver: trust_solver
 
 The corresponding default values can be looked up in the function body.
+We would like to discuss the hyperparameters briefly, 
+some hyperparameters must be shared or some 
+cannot be used when others are used.
+
+### lr and line_search_fn
+This implementation offers a line search. 
+Alternatively, a fixed learning rate can be selected. 
+If a fixed learning rate is selected, then 
+```
+line_search_fn = None 
+```
+must be set. Default value is line search with 
+strong wolfe conditions.
+
+### mu, nu and alpha_S
+mu, nu and alpha_S are learning rates for momentum terms.
+Where mu is the learning rate for a momentum term, 
+nu is the learning rate for the s and alpha_S is the 
+learning rate for the Gardient. The final search 
+direction is then a linear combination of the three 
+momentum terms or gradients and the search direction 
+from the trust region subproblem.
+
+It is recommended to set alpha_S =0 and choose 
+nu and mu between 0 and 1.
+
+### trust_solver, newton_maxit and cg_iter
+There are three settings for trust_solver: 
+"OBS", "Cauchy Point Calculation" and "Steihaug_cg". 
+If "OBS" is selected then there is the option to 
+select newton_maxit. This sets the maximum iteration 
+of the Newton method for the orthonormal basis SR1 solver.
+For the Steihaug_cg method, one can specify the maximum 
+iteration by cg_iter.
+
+### memory size
+The memory size finally indicates how many columns the 
+LSR1 matrix has. The larger the memory size the more 
+computational effort. The best number has proven to be 12.
+If the memory is not enough, it is advisable to reduce 
+the memory size.
+
+### tr_radius
+This is where the initial radius for the Trust Region 
+subproblem is set. 
+
+### tolerance_change and tolerance_grad
+These two hyperparameters are not very important. 
+tolerance_change checks if the reduction of the 
+target function is not too small. 
+tolerance_grad checks if the norm of the gradient 
+is not too small. In both cases a restart is initiated 
+or the batch is changed.
 
 ## Potential problems
 It may be that the system you are working on is 
